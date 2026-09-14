@@ -93,12 +93,13 @@ Expected: `Flutter 3.47.4 • channel stable`, `Dart 3.13.3`.
 mkdir -p ~/Android/Sdk/cmdline-tools && cd ~/Android/Sdk/cmdline-tools
 curl -LO https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
 unzip -q commandlinetools-linux-15859902_latest.zip && mv cmdline-tools latest
-sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1" "emulator" "system-images;android-36;google_apis;x86_64"
 flutter doctor --android-licenses
 flutter doctor
+avdmanager create avd --name orctool --package "system-images;android-36;google_apis;x86_64" --device pixel_7
 ```
 
-Expected: `flutter doctor` shows `[✓] Flutter`, `[✓] Android toolchain`. `[!] Android Studio (not installed)` and `[!] Chrome` are fine. Anything else it lists as ✗ under Android toolchain: fix before continuing (its message says how).
+Expected: `flutter doctor` shows `[✓] Flutter`, `[✓] Android toolchain`. `[!] Android Studio (not installed)` and `[!] Chrome` are fine. Anything else it lists as ✗ under Android toolchain: fix before continuing (its message says how). `avdmanager` answers "Do you wish to create a custom hardware profile" — answer `no` (pipe `echo no |` into it). If `sdkmanager` cannot find a package name above, list what exists with `sdkmanager --list | grep -E 'system-images;android-36|build-tools;36'` and use the closest current one; record the substitution in the report.
 
 - [ ] **Step 3: Scaffold into the existing repo**
 
@@ -145,15 +146,18 @@ flutter analyze --fatal-infos && flutter test
 
 Expected: analyze `No issues found!`; test `No tests ran` is acceptable here (exit 0 or 1 with "no tests" — either is fine at this step only).
 
-- [ ] **Step 7: Run the template app on the phone**
+- [ ] **Step 7: Run the template app on the emulator**
 
-Enable USB debugging on the phone, connect it, then:
+Start the emulator in the background, wait for it to boot, then run:
 
 ```bash
-flutter devices && flutter run
+flutter emulators --launch orctool
+adb wait-for-device && until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+flutter devices
+flutter run -d emulator-5554 --no-resident   # exits after install+launch; the app stays running
 ```
 
-Expected: the counter demo appears on the phone. Press `q` to quit.
+Expected: `flutter devices` lists `sdk gphone64 x86_64 (mobile) • emulator-5554`; the counter demo is on the emulator screen (`adb exec-out screencap -p > /tmp/scaffold.png` to capture it). If the emulator fails to start with a KVM/hypervisor message, stop any running VirtualBox VM and retry; if `/dev/kvm` is not writable, report BLOCKED with the exact error — that needs the user in the `kvm` group. Development runs on this emulator; direflail's phone is used for `VERIFICATION.md` at the end of the slice.
 
 - [ ] **Step 8: Commit**
 
@@ -3641,7 +3645,7 @@ class OrctoolApp extends StatelessWidget {
 flutter analyze --fatal-infos && flutter test && flutter run
 ```
 
-Expected: all tests pass; the app opens on the phone in the plain skin with Motion selected and the bubble level moving. Walk `VERIFICATION.md` (next step) once it is written.
+Expected: all tests pass; the app opens on the emulator (`-d emulator-5554`, started as in Task 0) in the plain skin with Motion selected; the bubble responds to the emulator's virtual accelerometer (Extended Controls → Virtual sensors). Take a screenshot (`adb exec-out screencap -p`) of each rail entry in both skins and put them in the report. `VERIFICATION.md` (next step) is walked on direflail's real phone.
 
 - [ ] **Step 4: VERIFICATION.md — the on-phone checklist**
 
