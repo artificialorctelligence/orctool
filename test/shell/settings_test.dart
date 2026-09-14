@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orctool/core/instrument.dart';
 import 'package:orctool/core/registry.dart';
+import 'package:orctool/shell/instruments_screen.dart';
 import 'package:orctool/shell/settings_screen.dart';
 import 'package:orctool/skins/all.dart';
 
-import '../core/registry_test.dart' show SpyScheduler;
+import '../core/registry_test.dart' show SpyScheduler, ThrowingScheduler;
 import '../fakes.dart';
 
 class Blocked extends FakeInstrument {
@@ -78,5 +79,35 @@ void main() {
     await t.tap(find.text('daily').last);
     await t.pumpAndSettle();
     expect(reg.settingsFor(reg.byId('a')!).interval, LogInterval.daily);
+  });
+
+  testWidgets('long instrument names do not overflow on narrow screens', (t) async {
+    final narrowReg = Registry([FakeInstrument(id: 'long', name: 'A Very Long Instrument Name Indeed', canLog: true)], await memoryPrefs(), SpyScheduler());
+    await narrowReg.probe();
+    await t.pumpWidget(MaterialApp(
+      theme: skinById('plain').light,
+      home: Scaffold(body: SizedBox(width: 320, child: InstrumentsScreen(registry: narrowReg))),
+    ));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('log settings save failure reverts the form and shows a message', (t) async {
+    final failReg = Registry([FakeInstrument(id: 'a', name: 'Alpha')], await memoryPrefs(), ThrowingScheduler());
+    await failReg.probe();
+    final a = failReg.byId('a')!;
+    await failReg.prefs.setLogging('a', true);
+    await t.pumpWidget(MaterialApp(theme: skinById('plain').light, home: Scaffold(body: SettingsScreen(prefs: failReg.prefs, registry: failReg))));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Instruments'));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('details-a')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('interval')));
+    await t.pumpAndSettle();
+    await t.tap(find.text('daily').last);
+    await t.pumpAndSettle();
+    expect(find.textContaining('Could not save'), findsOneWidget);
+    expect(failReg.settingsFor(a).interval, LogInterval.hourly);
   });
 }

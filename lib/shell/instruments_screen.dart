@@ -34,11 +34,7 @@ class InstrumentsScreen extends StatelessWidget {
           return ReorderableListView.builder(
             padding: const EdgeInsets.all(8),
             itemCount: items.length,
-            // registry.reorder decrements newIndex itself (old onReorder contract);
-            // onReorderItem's replacement pre-adjusts newIndex, so switching would
-            // require also changing Registry.reorder (reviewed/tested in an earlier task).
-            // ignore: deprecated_member_use
-            onReorder: registry.reorder,
+            onReorderItem: registry.reorder,
             itemBuilder: (context, index) {
               final i = items[index];
               return Container(
@@ -51,13 +47,15 @@ class InstrumentsScreen extends StatelessWidget {
                   type: MaterialType.transparency,
                   child: ListTile(
                     leading: ReorderableDragStartListener(index: index, child: Icon(Icons.drag_handle, color: orc.accent)),
-                    title: Text(orc.text(i.name), style: style),
+                    title: Text(orc.text(i.name), style: style, overflow: TextOverflow.ellipsis),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       Tooltip(message: 'Show', child: Switch.adaptive(key: Key('show-${i.id}'), value: registry.isShown(i.id), onChanged: (v) => registry.setShown(i.id, v))),
                       if (i.canLog) ...[
                         Tooltip(message: 'Log', child: Switch.adaptive(key: Key('log-${i.id}'), value: registry.isLogging(i.id), onChanged: (v) => _toggleLog(context, i, v))),
                         IconButton(
                           key: Key('details-${i.id}'),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36),
                           icon: Icon(Icons.chevron_right, color: orc.accent),
                           onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LogSettingsScreen(registry: registry, instrument: i))),
                         ),
@@ -88,8 +86,15 @@ class _LogSettingsScreenState extends State<LogSettingsScreen> {
   late LogSettings _s = widget.registry.settingsFor(widget.instrument);
 
   Future<void> _update(LogSettings s) async {
+    final before = _s;
     setState(() => _s = s);
-    await widget.registry.setLogSettings(widget.instrument, s);
+    try {
+      await widget.registry.setLogSettings(widget.instrument, s);
+    } catch (e) {
+      // The scheduler or prefs refused: revert the form and say so.
+      setState(() => _s = before);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: $e')));
+    }
   }
 
   @override

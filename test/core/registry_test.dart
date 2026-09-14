@@ -41,7 +41,7 @@ void main() {
   });
 
   test('reorder persists and rail follows it; hidden leaves the rail but not the list', () async {
-    await reg.reorder(0, 3); // a to the end
+    await reg.reorder(0, 2); // a to the end (post-removal index)
     expect(reg.ordered.map((i) => i.id), ['b', 'nolog', 'a']);
     await reg.setShown('nolog', false);
     expect(reg.rail.map((i) => i.id), ['b', 'a']);

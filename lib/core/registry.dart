@@ -42,9 +42,9 @@ class Registry extends ChangeNotifier {
   bool isLogging(String id) => prefs.logging.contains(id);
   LogSettings settingsFor(Instrument i) => prefs.logSettings(i.id) ?? i.defaultLogSettings;
 
+  /// [newIndex] is the item's index after removal, as `ReorderableListView.onReorderItem` reports it.
   Future<void> reorder(int oldIndex, int newIndex) async {
     final ids = ordered.map((i) => i.id).toList();
-    if (newIndex > oldIndex) newIndex--;
     ids.insert(newIndex, ids.removeAt(oldIndex));
     await prefs.setOrder(ids);
     notifyListeners();
@@ -68,9 +68,12 @@ class Registry extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Schedules before persisting (as [setLogging] does), so a scheduler
+  /// failure leaves the previous settings in force rather than persisting
+  /// a change the OS never actually picked up.
   Future<void> setLogSettings(Instrument i, LogSettings s) async {
-    await prefs.setLogSettings(i.id, s);
     if (isLogging(i.id)) await scheduler.schedule(i.id, s.interval.duration);
+    await prefs.setLogSettings(i.id, s);
     notifyListeners();
   }
 }
