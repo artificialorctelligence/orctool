@@ -40,8 +40,13 @@ class FakeInstrument extends Instrument {
       Text('detail ${reading?.values['v']}');
 }
 
+var _ffiReady = false;
+
 Future<Store> memoryStore() async {
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+  if (!_ffiReady) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    _ffiReady = true;
+  }
   return Store.open(inMemoryDatabasePath);
 }

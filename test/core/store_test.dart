@@ -39,13 +39,17 @@ void main() {
   });
 
   test('retention by cap deletes the oldest rows until under capBytes', () async {
-    const tiny = Limits(retentionDays: 365, capBytes: 120); // each row is ~31 bytes of data
+    const tiny = Limits(retentionDays: 365, capBytes: 120); // each row is 30 bytes of data
     for (var i = 0; i < 10; i++) {
       await put('r', t0.add(Duration(seconds: i)), limits: tiny);
     }
-    expect(await store.totalBytes(), lessThanOrEqualTo(120 + 31));
+    expect(await store.totalBytes(), lessThanOrEqualTo(120));
     final rows = await store.rows('r');
     expect(rows.last['ts'], t0.add(const Duration(seconds: 9)), reason: 'newest survives');
-    expect(rows.length, lessThan(10));
+    expect(rows.length, 4);
+  });
+
+  test('kind is constrained to session or log', () async {
+    await expectLater(put('r', t0, kind: 'bogus'), throwsA(anything));
   });
 }

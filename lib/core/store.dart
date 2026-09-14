@@ -23,11 +23,11 @@ class Store {
   Store._(this._db);
   final Database _db;
   int _total = 0;
-  DateTime? _lastAgePrune;
 
   static Future<Store> open(String path) async {
     final db = await openDatabase(path, version: 1, onCreate: (db, _) async {
-      await db.execute('CREATE TABLE readings(id INTEGER PRIMARY KEY, instrument TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL)');
+      await db.execute(
+          "CREATE TABLE readings(id INTEGER PRIMARY KEY, instrument TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL, CHECK(kind IN ('session','log')))");
       await db.execute('CREATE INDEX idx_inst_ts ON readings(instrument, ts)');
       await db.execute('CREATE INDEX idx_run ON readings(run_id)');
       await db.execute('CREATE INDEX idx_ts ON readings(ts)');
@@ -46,19 +46,19 @@ class Store {
     _total += json.length;
   }
 
-  /// Age prune at most once a minute (it rescans the total); cap prune on every
-  /// write from the cached total, so the cap is never exceeded by more than one row.
+  /// Age prune on every write (indexed delete; the total is rescanned only when it removed rows);
+  /// cap prune from the cached total, so the cap is never exceeded by more than one row.
   Future<void> prune(Limits limits, {DateTime? now, int incoming = 0}) async {
     final t = now ?? DateTime.now();
-    if (_lastAgePrune == null || t.difference(_lastAgePrune!).abs() > const Duration(minutes: 1)) {
-      final cutoff = t.subtract(Duration(days: limits.retentionDays)).millisecondsSinceEpoch;
-      await _db.delete('readings', where: 'ts < ?', whereArgs: [cutoff]);
-      _total = await totalBytes();
-      _lastAgePrune = t;
-    }
+    final cutoff = t.subtract(Duration(days: limits.retentionDays)).millisecondsSinceEpoch;
+    final removed = await _db.delete('readings', where: 'ts < ?', whereArgs: [cutoff]);
+    if (removed > 0) _total = await totalBytes();
     while (_total + incoming > limits.capBytes && _total > 0) {
-      // ponytail: 100 rows per pass, then rescan; fine at a 50 MB cap.
-      await _db.rawDelete('DELETE FROM readings WHERE id IN (SELECT id FROM readings ORDER BY ts ASC LIMIT 100)');
+      final count = Sqflite.firstIntValue(await _db.rawQuery('SELECT COUNT(*) FROM readings')) ?? 0;
+      if (count == 0) break;
+      final excess = _total + incoming - limits.capBytes;
+      final n = (excess * count / _total).ceil().clamp(1, count);
+      await _db.rawDelete('DELETE FROM readings WHERE id IN (SELECT id FROM readings ORDER BY ts ASC, id ASC LIMIT ?)', [n]);
       _total = await totalBytes();
     }
   }
