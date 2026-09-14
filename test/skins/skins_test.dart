@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orctool/skins/all.dart';
 import 'package:orctool/skins/skin.dart';
@@ -25,14 +26,16 @@ void main() {
     final p = skinById('plain').light.extension<OrcTheme>()!;
     expect(p.uppercase, isFalse);
     expect(p.text('Compass'), 'Compass');
+    expect(skinById('console').dark.colorScheme.surfaceContainerHighest, const Color(0xFF1E2230));
   });
 
-  test('no colour or radius literals outside lib/skins', () {
+  test('no colour, radius or font literals outside lib/skins', () {
+    final skinsDir = '${Platform.pathSeparator}skins${Platform.pathSeparator}';
+    final literal = RegExp(r"Color\(0x|Colors\.[a-z]|Color\.from|Radius\.circular\(\s*\d|fontFamily: '");
     final offenders = <String>[];
     for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
-      if (f.path.startsWith('lib/skins/') || !f.path.endsWith('.dart')) continue;
-      final src = f.readAsStringSync();
-      if (RegExp(r'Color\(0x|Colors\.[a-z]').hasMatch(src)) offenders.add(f.path);
+      if (f.path.contains(skinsDir) || !f.path.endsWith('.dart')) continue;
+      if (literal.hasMatch(f.readAsStringSync())) offenders.add(f.path);
     }
     expect(offenders, isEmpty);
   });

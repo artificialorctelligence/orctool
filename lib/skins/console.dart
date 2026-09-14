@@ -8,7 +8,24 @@ const _accent = Color(0xFFF2B56B);
 
 final ThemeData _console = ThemeData(
   brightness: Brightness.dark,
-  colorScheme: ColorScheme.fromSeed(seedColor: _accent, brightness: Brightness.dark, surface: _ground, primary: _accent, onPrimary: _ground),
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: _accent,
+    brightness: Brightness.dark,
+    primary: _accent,
+    onPrimary: _ground,
+    secondary: _accent,
+    onSecondary: _ground,
+    tertiary: _accent,
+    onTertiary: _ground,
+    surface: _ground,
+    onSurface: _accent,
+    surfaceContainerLowest: _ground,
+    surfaceContainerLow: _panel,
+    surfaceContainer: _panel,
+    surfaceContainerHigh: _panel,
+    surfaceContainerHighest: _panel,
+    outline: _accent,
+  ),
   scaffoldBackgroundColor: _ground,
   fontFamily: 'Antonio',
   extensions: const [
