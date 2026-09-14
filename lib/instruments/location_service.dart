@@ -13,7 +13,8 @@ class LocationService {
     if (!await Geolocator.isLocationServiceEnabled()) throw LocationDenied('Location is turned off on this phone');
     var p = await Geolocator.checkPermission();
     if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-    if (p == LocationPermission.denied || p == LocationPermission.deniedForever) throw LocationDenied('Location permission needed');
+    if (p == LocationPermission.deniedForever) throw LocationDenied('Location permission denied permanently — use App settings');
+    if (p == LocationPermission.denied) throw LocationDenied('Location permission needed');
   }
 
   Future<Position> current({LocationAccuracy accuracy = LocationAccuracy.high, Duration timeLimit = const Duration(seconds: 30)}) async {

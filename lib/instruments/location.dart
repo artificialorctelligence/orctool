@@ -88,16 +88,56 @@ class LocationInstrument extends Instrument {
       const Text('Logging location while the app is closed needs location access "all the time". '
           'Orctool records your position on the schedule above, keeps it only on this phone, and never sends it anywhere.'),
       const SizedBox(height: 8),
-      FutureBuilder<bool>(
-        future: _svc.hasBackground(),
-        builder: (context, snap) => FilledButton(
-          onPressed: snap.data == true ? null : () async {
-            await _svc.requestBackground();
-            onChanged(current); // re-render the precondition
-          },
-          child: Text(snap.data == true ? 'Allowed all the time' : 'Allow all the time'),
-        ),
-      ),
+      _BackgroundPermissionButton(_svc),
     ]);
   }
+}
+
+/// "All the time" is granted in the system Settings page on Android 11+, so the
+/// answer can only be learned when the app comes back to the foreground.
+class _BackgroundPermissionButton extends StatefulWidget {
+  const _BackgroundPermissionButton(this.svc);
+  final LocationService svc;
+
+  @override
+  State<_BackgroundPermissionButton> createState() => _BackgroundPermissionButtonState();
+}
+
+class _BackgroundPermissionButtonState extends State<_BackgroundPermissionButton> with WidgetsBindingObserver {
+  late Future<bool> _granted = widget.svc.hasBackground();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  void _refresh() => setState(() {
+        _granted = widget.svc.hasBackground();
+      });
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: _granted,
+        builder: (context, snap) => FilledButton(
+          onPressed: snap.data == true
+              ? null
+              : () async {
+                  await widget.svc.requestBackground();
+                  _refresh();
+                },
+          child: Text(snap.data == true ? 'Allowed all the time' : 'Allow all the time'),
+        ),
+      );
 }

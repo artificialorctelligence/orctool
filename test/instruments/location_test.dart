@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:orctool/core/instrument.dart';
 import 'package:orctool/instruments/location.dart';
 import 'package:orctool/instruments/location_service.dart';
 import 'package:orctool/skins/all.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+
+class _FakeGeo extends GeolocatorPlatform with MockPlatformInterfaceMixin {
+  _FakeGeo(this.permission);
+  LocationPermission permission;
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+  @override
+  Future<LocationPermission> checkPermission() async => permission;
+  @override
+  Future<LocationPermission> requestPermission() async => permission;
+}
 
 class FakeLocation extends LocationService {
   FakeLocation({this.permitted = true, this.background = false});
@@ -65,6 +78,32 @@ void main() {
     j.log = const LogSettings(extra: {'accuracy': 'low'});
     await j.sample();
     expect(seen, [LocationAccuracy.low]);
+  });
+
+  testWidgets('details form re-checks background permission when the app resumes', (t) async {
+    final fake = FakeLocation(background: false);
+    final i = LocationInstrument(fake);
+    await t.pumpWidget(MaterialApp(
+      theme: skinById('plain').light,
+      home: Scaffold(body: Builder(builder: (c) => i.buildLogSettings(c, i.defaultLogSettings, (_) {}))),
+    ));
+    await t.pump();
+    expect(find.text('Allow all the time'), findsOneWidget);
+    fake.background = true; // the user granted it in system Settings
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump();
+    await t.pump();
+    expect(find.text('Allowed all the time'), findsOneWidget);
+  });
+
+  test('ensurePermission distinguishes a permanent denial', () async {
+    GeolocatorPlatform.instance = _FakeGeo(LocationPermission.deniedForever);
+    await expectLater(LocationService().ensurePermission(), throwsA(predicate((e) => e is LocationDenied && e.message.contains('App settings'))));
+    GeolocatorPlatform.instance = _FakeGeo(LocationPermission.denied);
+    await expectLater(LocationService().ensurePermission(), throwsA(predicate((e) => e is LocationDenied && e.message == 'Location permission needed')));
+    GeolocatorPlatform.instance = _FakeGeo(LocationPermission.whileInUse);
+    await LocationService().ensurePermission(); // completes
   });
 }
 
