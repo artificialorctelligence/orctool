@@ -5,6 +5,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 
 import '../core/instrument.dart';
 import '../skins/skin.dart';
+import 'detail_grid.dart';
 import 'sensor_util.dart';
 
 const _g0 = 9.80665;
@@ -72,7 +73,7 @@ class MotionInstrument extends Instrument {
   }
 
   @override
-  Widget buildDetail(BuildContext context, Reading? r) => _Grid({
+  Widget buildDetail(BuildContext context, Reading? r) => DetailGrid({
         'Pitch': _deg(r?.values['pitch']),
         'Roll': _deg(r?.values['roll']),
         'Accel': _xyz(r, 'ax', 'ay', 'az', 'm/s²'),
@@ -102,26 +103,4 @@ class _LevelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LevelPainter o) => o.pitch != pitch || o.roll != roll || o.accent != accent || o.ring != ring;
-}
-
-/// Label/value pairs, two per row — shared shape for every detail band.
-class _Grid extends StatelessWidget {
-  const _Grid(this.items);
-  final Map<String, String> items;
-  @override
-  Widget build(BuildContext context) {
-    final orc = OrcTheme.of(context);
-    final style = Theme.of(context).textTheme.bodyMedium!.copyWith(color: orc.accent, fontFamily: orc.displayFont);
-    return Wrap(
-      spacing: 16,
-      runSpacing: 4,
-      children: [
-        for (final e in items.entries)
-          Text.rich(TextSpan(children: [
-            TextSpan(text: '${orc.text(e.key)}  ', style: style.copyWith(color: style.color!.withValues(alpha: 0.6))),
-            TextSpan(text: e.value, style: style),
-          ])),
-      ],
-    );
-  }
 }
