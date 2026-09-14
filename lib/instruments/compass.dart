@@ -9,7 +9,7 @@ import 'detail_grid.dart';
 import 'sensor_util.dart';
 
 /// Android's getRotationMatrix + getOrientation, reduced to the azimuth:
-/// H = E × A (east), M = A × H (north); azimuth = atan2(Hy, My).
+/// H = E × A (east), M = A × H (north), of which only My is needed; azimuth = atan2(Hy, My).
 double headingDegrees({required double ax, required double ay, required double az, required double mx, required double my, required double mz}) {
   var hx = my * az - mz * ay, hy = mz * ax - mx * az, hz = mx * ay - my * ax;
   final hn = sqrt(hx * hx + hy * hy + hz * hz);
@@ -101,5 +101,5 @@ class _DialPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_DialPainter o) => o.heading != heading || o.accent != accent;
+  bool shouldRepaint(_DialPainter o) => o.heading != heading || o.accent != accent || o.ring != ring;
 }
