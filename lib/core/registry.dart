@@ -57,14 +57,14 @@ class Registry extends ChangeNotifier {
 
   Future<void> setLogging(Instrument i, bool on) async {
     if (!i.canLog) throw ArgumentError('${i.id} cannot log');
-    await prefs.setLogging(i.id, on);
     if (on) {
-      await prefs.setLogRun(i.id, '${i.id}-${DateTime.now().millisecondsSinceEpoch}');
       await scheduler.schedule(i.id, settingsFor(i).interval.duration);
+      await prefs.setLogRun(i.id, '${i.id}-${DateTime.now().millisecondsSinceEpoch}');
     } else {
       await scheduler.cancel(i.id);
       await prefs.setLogRun(i.id, null);
     }
+    await prefs.setLogging(i.id, on);
     notifyListeners();
   }
 

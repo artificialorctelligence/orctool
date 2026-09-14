@@ -12,6 +12,13 @@ class SpyScheduler implements Scheduler {
   Future<void> cancel(String id) async => calls.add('cancel $id');
 }
 
+class ThrowingScheduler implements Scheduler {
+  @override
+  Future<void> schedule(String id, Duration every) async => throw StateError('os refused');
+  @override
+  Future<void> cancel(String id) async => throw StateError('os refused');
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late SpyScheduler sched;
@@ -61,5 +68,13 @@ void main() {
 
   test('logging an instrument that cannot log is an error', () {
     expect(() => reg.setLogging(noLog, true), throwsArgumentError);
+  });
+
+  test('a scheduler failure leaves logging state untouched', () async {
+    final r = Registry([a], await memoryPrefs(), ThrowingScheduler());
+    await r.probe();
+    await expectLater(r.setLogging(a, true), throwsStateError);
+    expect(r.isLogging('a'), isFalse);
+    expect(r.prefs.logRun('a'), isNull);
   });
 }
