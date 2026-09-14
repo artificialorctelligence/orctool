@@ -48,7 +48,11 @@ var _ffiReady = false;
 Future<Store> memoryStore() async {
   if (!_ffiReady) {
     sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+    // Widget tests run under FakeAsync; the isolate-backed factory resolves
+    // its futures from a real background isolate, which never completes
+    // inside FakeAsync and hangs `await memoryStore()` forever. The
+    // no-isolate factory runs SQLite in-process, completing via microtasks.
+    databaseFactory = databaseFactoryFfiNoIsolate;
     _ffiReady = true;
   }
   return Store.open(inMemoryDatabasePath);
