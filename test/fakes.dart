@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:orctool/core/instrument.dart';
+import 'package:orctool/core/store.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class FakeInstrument extends Instrument {
   FakeInstrument({
@@ -36,4 +38,10 @@ class FakeInstrument extends Instrument {
   @override
   Widget buildDetail(BuildContext context, Reading? reading) =>
       Text('detail ${reading?.values['v']}');
+}
+
+Future<Store> memoryStore() async {
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+  return Store.open(inMemoryDatabasePath);
 }
