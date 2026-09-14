@@ -28,7 +28,11 @@ void main() {
     ]);
     rec.start(i);
     expect(rec.recording, isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 50)); // let the stream drain and the inserts land
+    // Not a wall-clock wait: flushes the microtask queue so the fake's
+    // Stream.fromIterable (which defers even its first item to a scheduled
+    // microtask) has actually emitted before stop() cancels it — independent
+    // of the _pending flush stop() now does for rows already in flight.
+    await Future<void>.delayed(Duration.zero);
     await rec.stop();
     expect(rec.recording, isFalse);
     final runs = await store.runs();

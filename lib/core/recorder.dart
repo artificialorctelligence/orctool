@@ -13,6 +13,7 @@ class Recorder extends ChangeNotifier {
   final Prefs prefs;
 
   StreamSubscription<Reading>? _sub;
+  Future<void> _pending = Future.value();
   Instrument? instrument;
   DateTime? startedAt;
   String? _runId;
@@ -27,18 +28,22 @@ class Recorder extends ChangeNotifier {
     error = null;
     _runId = '${i.id}-${startedAt!.millisecondsSinceEpoch}';
     _sub = i.live().listen(
-      (r) => store
-          .insert(instrument: i.id, runId: _runId!, kind: 'session', ts: r.ts, data: i.toRow(r), limits: prefs.limits)
-          .catchError((Object e) => _fail('Could not save: $e')),
+      (r) => _pending = _pending.then((_) => store.insert(
+            instrument: i.id, runId: _runId!, kind: 'session', ts: r.ts, data: i.toRow(r), limits: prefs.limits)
+          // A failed write ends the session with a visible message (spec §5); earlier rows stay.
+          .catchError((Object e) => _fail('Could not save: $e'))),
+      // A sensor error ends the session; rows written so far stay (spec §5).
       onError: (Object e) => _fail('$e'),
       onDone: stop,
     );
     notifyListeners();
   }
 
+  /// Returns once every queued row has been written.
   Future<void> stop() async {
     await _sub?.cancel();
     _sub = null;
+    await _pending;
     notifyListeners();
   }
 
