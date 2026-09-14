@@ -92,8 +92,9 @@ class _LogSettingsScreenState extends State<LogSettingsScreen> {
       await widget.registry.setLogSettings(widget.instrument, s);
     } catch (e) {
       // The scheduler or prefs refused: revert the form and say so.
+      if (!mounted) return;
       setState(() => _s = before);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: $e')));
     }
   }
 
