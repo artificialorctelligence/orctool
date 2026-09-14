@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:orctool/core/instrument.dart';
+import 'package:orctool/core/prefs.dart';
 import 'package:orctool/core/store.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class FakeInstrument extends Instrument {
@@ -49,4 +52,9 @@ Future<Store> memoryStore() async {
     _ffiReady = true;
   }
   return Store.open(inMemoryDatabasePath);
+}
+
+Future<Prefs> memoryPrefs() {
+  SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
+  return Prefs.open();
 }
