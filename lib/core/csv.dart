@@ -1,8 +1,13 @@
+/// `ts` first, then every other key seen in any row, sorted.
+List<String> columnsOf(List<Map<String, Object?>> rows) {
+  final keys = {for (final r in rows) ...r.keys}..remove('ts');
+  return ['ts', ...keys.toList()..sort()];
+}
+
 /// Rows as Records stores them: {'ts': DateTime, ...columns}.
 String toCsv(List<Map<String, Object?>> rows) {
   if (rows.isEmpty) return '';
-  final keys = {for (final r in rows) ...r.keys}..remove('ts');
-  final cols = ['ts', ...keys.toList()..sort()];
+  final cols = columnsOf(rows);
   String cell(Object? v) {
     final s = switch (v) { null => '', DateTime d => d.toUtc().toIso8601String(), _ => '$v' };
     return RegExp(r'[",\n]').hasMatch(s) ? '"${s.replaceAll('"', '""')}"' : s;

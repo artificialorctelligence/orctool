@@ -37,6 +37,22 @@ void main() {
     expect(find.textContaining('Session ·'), findsOneWidget);
     expect(find.text('2 rows'), findsOneWidget);
     expect(find.textContaining('of 50 MB'), findsOneWidget);
+
+    // The kind word goes through orc.text() too: under the uppercase console skin it reads SESSION.
+    await t.pumpWidget(MaterialApp(theme: skinById('console').dark, home: Scaffold(body: RecordsScreen(store: store, registry: reg, prefs: reg.prefs))));
+    await t.pumpAndSettle();
+    expect(find.textContaining('SESSION ·'), findsOneWidget);
+  });
+
+  testWidgets('run table builds rows lazily, not all at once', (t) async {
+    for (var i = 0; i < 3000; i++) {
+      await store.insert(instrument: 'compass', runId: 'big', kind: 'session', ts: t0.add(Duration(seconds: i)), data: {'heading': 247 + i}, limits: reg.prefs.limits);
+    }
+    await pump(t);
+    await t.tap(find.text('Compass').first);
+    await t.pumpAndSettle();
+    expect(find.text('247'), findsOneWidget);
+    expect(find.byType(Row).evaluate().length, lessThan(200));
   });
 
   testWidgets('filter chips', (t) async {

@@ -32,6 +32,8 @@ class RecordsScreen extends StatefulWidget {
 
 class _RecordsScreenState extends State<RecordsScreen> {
   String? _kind; // null = all
+  late Future<List<RunSummary>> _runs = widget.store.runs(kind: _kind);
+  late final Future<int> _total = widget.store.totalBytes();
 
   String _name(String id) => widget.registry.byId(id)?.name ?? id;
 
@@ -44,13 +46,20 @@ class _RecordsScreenState extends State<RecordsScreen> {
         for (final (k, label) in [(null, 'All'), ('session', 'Sessions'), ('log', 'Logs')])
           Padding(
             padding: const EdgeInsets.only(right: 6),
-            child: ChoiceChip(label: Text(orc.text(label), style: chipStyle), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
+            child: ChoiceChip(
+              label: Text(orc.text(label), style: chipStyle),
+              selected: _kind == k,
+              onSelected: (_) => setState(() {
+                _kind = k;
+                _runs = widget.store.runs(kind: k);
+              }),
+            ),
           ),
       ]),
       const SizedBox(height: 8),
       Expanded(
         child: FutureBuilder<List<RunSummary>>(
-          future: widget.store.runs(kind: _kind),
+          future: _runs,
           builder: (context, snap) {
             final runs = snap.data ?? const <RunSummary>[];
             if (snap.hasData && runs.isEmpty) return Center(child: Text(orc.text('Nothing recorded yet'), style: chipStyle));
@@ -58,6 +67,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
               for (final r in runs)
                 Container(
                   margin: const EdgeInsets.only(bottom: 6),
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(color: orc.panel, borderRadius: BorderRadius.circular(orc.railRadius), border: orc.railStripe ? Border(left: BorderSide(color: orc.accent, width: 4)) : null),
                   // Material.transparency gives the ListTile its own ink-painting ancestor, so
                   // the opaque decoration above doesn't hide its background/splash (framework assertion otherwise).
@@ -65,7 +75,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
                     type: MaterialType.transparency,
                     child: ListTile(
                       title: Text(orc.text(_name(r.instrument)), style: chipStyle.copyWith(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${r.kind == 'log' ? 'Log' : 'Session'} · ${_when(context, r)}', style: chipStyle.copyWith(color: orc.accent.withValues(alpha: 0.6))),
+                      subtitle: Text('${orc.text(r.kind == 'log' ? 'Log' : 'Session')} · ${_when(context, r)}', style: chipStyle.copyWith(color: orc.accent.withValues(alpha: 0.6))),
                       trailing: Text('${r.rows} rows', style: chipStyle),
                       onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => RunScreen(store: widget.store, run: r, title: _name(r.instrument), share: widget.share))),
                     ),
@@ -77,7 +87,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
       ),
       const SizedBox(height: 8),
       FutureBuilder<int>(
-        future: widget.store.totalBytes(),
+        future: _total,
         builder: (context, snap) => Text('${orc.text('Storage')}: ${_mb(snap.data ?? 0)} of ${_mb(widget.prefs.limits.capBytes)}', style: chipStyle),
       ),
     ]);
@@ -99,6 +109,19 @@ class RunScreen extends StatelessWidget {
   final String title;
   final ShareFn share;
 
+  static const _cellWidth = 120.0;
+
+  Widget _cell(BuildContext context, String s, {bool head = false}) {
+    final orc = OrcTheme.of(context);
+    return SizedBox(
+      width: _cellWidth,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Text(head ? orc.text(s) : s, overflow: TextOverflow.ellipsis, style: TextStyle(color: orc.accent, fontFamily: orc.displayFont, fontWeight: head ? FontWeight.bold : null)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final orc = OrcTheme.of(context);
@@ -110,19 +133,25 @@ class RunScreen extends StatelessWidget {
         builder: (context, snap) {
           final rows = snap.data;
           if (rows == null) return const Center(child: CircularProgressIndicator());
-          final cols = toCsv(rows).split('\n').first.split(',');
+          final cols = columnsOf(rows);
           return Column(children: [
             Expanded(
               child: SingleChildScrollView(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: [for (final c in cols) DataColumn(label: Text(c))],
-                    rows: [
-                      for (final r in rows)
-                        DataRow(cells: [for (final c in cols) DataCell(Text(c == 'ts' ? TimeOfDay.fromDateTime((r['ts'] as DateTime).toLocal()).format(context) : '${r[c] ?? ''}'))]),
-                    ],
-                  ),
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: _cellWidth * cols.length,
+                  child: Column(children: [
+                    Row(children: [for (final c in cols) _cell(context, c, head: true)]),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: rows.length,
+                        itemBuilder: (context, i) => Row(children: [
+                          for (final c in cols)
+                            _cell(context, c == 'ts' ? TimeOfDay.fromDateTime((rows[i]['ts'] as DateTime).toLocal()).format(context) : '${rows[i][c] ?? ''}'),
+                        ]),
+                      ),
+                    ),
+                  ]),
                 ),
               ),
             ),
@@ -131,7 +160,7 @@ class RunScreen extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: () => share(toCsv(rows), '${run.instrument}-${run.runId}.csv'),
                 icon: const Icon(Icons.share),
-                label: const Text('Export CSV'),
+                label: Text(orc.text('Export CSV')),
               ),
             ),
           ]);
