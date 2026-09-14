@@ -41,6 +41,9 @@ class WeatherInstrument extends Instrument {
   bool get canLog => true;
 
   @override
+  Duration get sampleTimeout => const Duration(seconds: 45);
+
+  @override
   Future<bool> isAvailable() async => true;
 
   @override
@@ -50,13 +53,19 @@ class WeatherInstrument extends Instrument {
     final res = await _client.get(uri).timeout(const Duration(seconds: 15));
     if (res.statusCode != 200) throw Exception('Weather service returned ${res.statusCode}');
     final cur = ((jsonDecode(res.body) as Map)['current'] as Map).cast<String, Object?>();
+    num field(String key, [num? fallback]) {
+      final v = cur[key];
+      if (v is num) return v;
+      if (fallback != null) return fallback;
+      throw FormatException('Weather response has no $key');
+    }
     return Reading(DateTime.now(), {
-      'temp': cur['temperature_2m'] as num,
-      'humidity': cur['relative_humidity_2m'] as num,
-      'pressure': cur['surface_pressure'] as num,
-      'wind': cur['wind_speed_10m'] as num,
-      'wind_dir': cur['wind_direction_10m'] as num,
-      'code': cur['weather_code'] as num,
+      'temp': field('temperature_2m'),
+      'humidity': field('relative_humidity_2m', 0),
+      'pressure': field('surface_pressure', 0),
+      'wind': field('wind_speed_10m', 0),
+      'wind_dir': field('wind_direction_10m', 0),
+      'code': field('weather_code', 0),
       'lat': p.latitude,
       'lon': p.longitude,
     });

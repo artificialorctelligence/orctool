@@ -47,6 +47,16 @@ void main() {
     expect(two[1].ts, two[0].ts, reason: 'age is visible: the timestamp did not move');
   });
 
+  test('null optional fields degrade to 0; a missing temperature is an error', () async {
+    const calm = '{"current":{"time":"2026-09-14T02:15","temperature_2m":19.3,"relative_humidity_2m":94,'
+        '"surface_pressure":1022.3,"wind_speed_10m":0,"wind_direction_10m":null,"weather_code":0}}';
+    final r = await WeatherInstrument(FakeLocation(), client: MockClient((_) async => http.Response(calm, 200))).sample();
+    expect(r.values['wind_dir'], 0);
+    expect(r.values['temp'], 19.3);
+    const noTemp = '{"current":{"time":"2026-09-14T02:15","relative_humidity_2m":94}}';
+    expect(WeatherInstrument(FakeLocation(), client: MockClient((_) async => http.Response(noTemp, 200))).sample(), throwsFormatException);
+  });
+
   test('describeWmo', () {
     expect(describeWmo(0), 'Clear');
     expect(describeWmo(3), 'Overcast');
