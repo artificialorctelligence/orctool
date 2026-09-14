@@ -42,6 +42,21 @@ void main() {
     expect((await store.rows(runs.single.runId)).map((r) => r['heading']), [1, 2]);
   });
 
+  test('starting on another instrument ends the running session first', () async {
+    final store = await memoryStore();
+    final rec = Recorder(store, await memoryPrefs());
+    final a = FakeInstrument(id: 'a', script: [Reading(t0, const {'v': 1})]);
+    final b = FakeInstrument(id: 'b', script: [Reading(t0, const {'v': 2})]);
+    rec.start(a);
+    await Future<void>.delayed(Duration.zero);
+    await rec.start(b);
+    expect(rec.instrument, same(b));
+    await Future<void>.delayed(Duration.zero);
+    await rec.stop();
+    final runs = await store.runs();
+    expect(runs.map((r) => r.instrument).toSet(), {'a', 'b'});
+  });
+
   test('a stream error keeps the rows so far and stops cleanly', () async {
     final store = await memoryStore();
     final rec = Recorder(store, await memoryPrefs());

@@ -6,7 +6,7 @@ import 'instrument.dart';
 import 'prefs.dart';
 import 'store.dart';
 
-/// One session at a time: an extra sink on the instrument's live stream.
+/// One session at a time: starting on another instrument ends the running one.
 class Recorder extends ChangeNotifier {
   Recorder(this.store, this.prefs);
   final Store store;
@@ -21,8 +21,8 @@ class Recorder extends ChangeNotifier {
 
   bool get recording => _sub != null;
 
-  void start(Instrument i) {
-    if (recording) return;
+  Future<void> start(Instrument i) async {
+    if (recording) await stop();
     instrument = i;
     startedAt = DateTime.now();
     error = null;

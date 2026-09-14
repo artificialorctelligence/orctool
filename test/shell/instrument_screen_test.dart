@@ -61,6 +61,21 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('record button steals the session from another instrument', (t) async {
+    final i = Controlled();
+    await pump(t, i);
+    rec.start(FakeInstrument(id: 'other'));
+    await t.tap(find.byKey(const Key('record')));
+    // Same reasoning as the record-button test above: Recorder.start ends the
+    // other session with an awaited StreamSubscription.cancel(), whose Future
+    // only settles on the real event loop.
+    await t.runAsync(() async {});
+    await t.pump();
+    expect(rec.instrument, same(i));
+    expect(rec.recording, isTrue);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('log chip only when logging is on; absent when canLog is false', (t) async {
     final i = Controlled();
     await pump(t, i);

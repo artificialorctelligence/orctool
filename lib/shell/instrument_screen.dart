@@ -81,7 +81,9 @@ class _RecordingBarState extends State<_RecordingBar> {
   @override
   void initState() {
     super.initState();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_mine) setState(() {});
+    });
   }
 
   @override
