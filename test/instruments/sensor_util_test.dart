@@ -25,5 +25,6 @@ void main() {
     expect(out, [(2, 'x'), (3, 'y')]);
     await sub.cancel();
     expect(a.hasListener, isFalse, reason: 'cancel propagates');
+    expect(b.hasListener, isFalse, reason: 'cancel propagates to both');
   });
 }

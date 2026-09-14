@@ -15,6 +15,14 @@ const _g0 = 9.80665;
       roll: atan2(ax, az) * 180 / pi,
     );
 
+/// Where the bubble sits for a tilt: toward the HIGH side, clamped to the ring.
+/// Roll < 0 is right-edge-down (Android's accelerometer sign), so dx = +roll;
+/// pitch > 0 is nose-up, so dy = −pitch (screen y points down).
+Offset bubbleOffset({required double pitch, required double roll, required double radius}) {
+  final scale = radius / 45; // 45° reaches the ring
+  return Offset((roll * scale).clamp(-radius, radius), (-pitch * scale).clamp(-radius, radius));
+}
+
 class MotionInstrument extends Instrument {
   MotionInstrument({Stream<AccelerometerEvent>? accel, Stream<GyroscopeEvent>? gyro})
       : _accel = accel ?? accelerometerEventStream(samplingPeriod: SensorInterval.uiInterval),
@@ -76,7 +84,7 @@ class MotionInstrument extends Instrument {
       r == null ? '—' : '${r.values[x]!.toStringAsFixed(2)} ${r.values[y]!.toStringAsFixed(2)} ${r.values[z]!.toStringAsFixed(2)} $unit';
 }
 
-/// A bubble level: the bubble moves opposite to the tilt, clamped to the ring.
+/// A bubble level: the bubble moves to the high side, clamped to the ring.
 class _LevelPainter extends CustomPainter {
   _LevelPainter({required this.pitch, required this.roll, required this.accent, required this.ring});
   final double pitch, roll;
@@ -88,13 +96,12 @@ class _LevelPainter extends CustomPainter {
     final rr = size.width / 2 - 4;
     canvas.drawCircle(c, rr, Paint()..color = ring..style = PaintingStyle.stroke..strokeWidth = 3);
     canvas.drawCircle(c, 10, Paint()..color = ring..style = PaintingStyle.stroke..strokeWidth = 1);
-    final scale = rr / 45; // 45° reaches the ring
-    final off = Offset((-roll * scale).clamp(-rr, rr), (pitch * scale).clamp(-rr, rr));
+    final off = bubbleOffset(pitch: pitch, roll: roll, radius: rr);
     canvas.drawCircle(c + off, 12, Paint()..color = accent);
   }
 
   @override
-  bool shouldRepaint(_LevelPainter o) => o.pitch != pitch || o.roll != roll || o.accent != accent;
+  bool shouldRepaint(_LevelPainter o) => o.pitch != pitch || o.roll != roll || o.accent != accent || o.ring != ring;
 }
 
 /// Label/value pairs, two per row — shared shape for every detail band.
