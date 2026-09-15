@@ -53,3 +53,8 @@ from the *merged* manifest (workmanager and geolocator merge `POST_NOTIFICATIONS
 Open-Meteo as a recipient of approximate (2-decimal) location. Also worth knowing for
 VERIFICATION.md item 4: the emulator run granted location with `pm grant`, so the real runtime
 permission prompt has never been exercised — the phone walk is the first time it will be.
+
+**Partly done 2026-09-14** (entry stays open for (1), (3), (4)): (2) the label is now
+"Orctool" (commit d1217e5, seen fixed in the permission dialog on the Pixel walk), and the
+runtime permission prompt has now been exercised on a Pixel 9 Pro XL / Android 17 — it appeared
+on first open of Location and "While using the app" worked as designed.

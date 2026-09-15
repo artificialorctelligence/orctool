@@ -1,68 +1,53 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter_rotation_sensor/flutter_rotation_sensor.dart' as rs;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orctool/instruments/compass.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+/// A device rotated [deg] about the vertical axis, with the given accuracy in radians.
+rs.OrientationEvent turned(double deg, {double accuracy = -1}) {
+  final h = deg * pi / 360; // half angle
+  return rs.OrientationEvent(quaternion: rs.Quaternion(0, 0, sin(h), cos(h)), accuracy: accuracy, timestamp: 0);
+}
+
 void main() {
-  // Phone flat (gravity on +z). Earth's field: horizontal component plus a
-  // downward component; the horizontal part points to magnetic north.
-  test('heading: north along +y is 0°, north along +x is 270°, along -y is 180°', () {
-    expect(headingDegrees(ax: 0, ay: 0, az: 9.8, mx: 0, my: 20, mz: -40), closeTo(0, 0.01));
-    expect(headingDegrees(ax: 0, ay: 0, az: 9.8, mx: 20, my: 0, mz: -40), closeTo(270, 0.01));
-    expect(headingDegrees(ax: 0, ay: 0, az: 9.8, mx: 0, my: -20, mz: -40), closeTo(180, 0.01));
-    expect(headingDegrees(ax: 0, ay: 0, az: 9.8, mx: -20, my: 0, mz: -40), closeTo(90, 0.01));
-  });
-
-  test('heading is tilt-compensated: pitching the phone up does not change it', () {
-    final flat = headingDegrees(ax: 0, ay: 0, az: 9.8, mx: 14.1, my: 14.1, mz: -40);
-    // Rotate both vectors about x by 30°: (x, y, z) → (x, y·c − z·s, y·s + z·c).
-    const c = 0.8660254, s = 0.5;
-    final tilted = headingDegrees(ax: 0, ay: -9.8 * s, az: 9.8 * c, mx: 14.1, my: 14.1 * c + 40 * s, mz: 14.1 * s - 40 * c);
-    expect(tilted, closeTo(flat, 0.5));
-  });
-
   test('cardinal', () {
     expect(cardinal(0), 'N');
     expect(cardinal(247), 'WSW');
     expect(cardinal(359), 'N');
   });
 
-  test('live reading carries heading and field strength in µT', () async {
-    final accel = StreamController<AccelerometerEvent>();
+  test('heading is the platform azimuth in degrees 0–360; accuracy in degrees or -1', () async {
+    final orient = StreamController<rs.OrientationEvent>();
     final mag = StreamController<MagnetometerEvent>();
-    final c = CompassInstrument(accel: accel.stream, mag: mag.stream);
+    final c = CompassInstrument(orientation: orient.stream, mag: mag.stream);
     final first = c.live().first;
-    accel.add(AccelerometerEvent(0, 0, 9.8, DateTime(2026)));
     mag.add(MagnetometerEvent(0, 30, -40, DateTime(2026)));
-    accel.add(AccelerometerEvent(0, 0, 9.8, DateTime(2026)));
+    final ev = turned(90, accuracy: 0.1);
+    orient.add(ev);
     final r = await first;
-    expect(r.values['heading'], closeTo(0, 0.01));
+    expect(r.values['heading'], closeTo((ev.eulerAngles.azimuth * 180 / pi + 360) % 360, 1e-6));
+    expect(r.values['heading'], inInclusiveRange(0, 360));
+    expect(r.values['accuracy'], closeTo(0.1 * 180 / pi, 1e-6));
     expect(r.values['field'], closeTo(50, 0.01));
     expect(c.id, 'compass');
   });
-  smootherTests();
-}
 
-void smootherTests() {
-  test('HeadingSmoother converges to a constant input and averages across north correctly', () {
-    final s = HeadingSmoother();
-    double h = 0;
-    for (var i = 0; i < 40; i++) {
-      h = s.add(90);
-    }
-    expect(h, closeTo(90, 0.01));
-    final n = HeadingSmoother(alpha: 0.5);
-    n.add(359);
-    expect(n.add(1), closeTo(0, 0.01), reason: 'wraps through north, not through 180');
+  test('a rotation about the vertical axis changes the heading by that angle', () {
+    final a = turned(0).eulerAngles.azimuth, b = turned(90).eulerAngles.azimuth;
+    final d = ((b - a) * 180 / pi) % 360; // azimuth runs clockwise; the quaternion turns anticlockwise
+    expect(min(d, 360 - d), closeTo(90, 1e-6));
   });
 
-  test('a jittering input is steadier after smoothing', () {
-    final s = HeadingSmoother();
-    final raw = [50.0, 56.0, 45.0, 55.0, 47.0, 53.0, 46.0, 54.0, 49.0, 51.0];
-    final smoothed = raw.map(s.add).toList();
-    double spread(List<double> xs) => xs.reduce(max) - xs.reduce(min);
-    expect(spread(smoothed.sublist(5)), lessThan(spread(raw.sublist(5)) / 2));
+  test('no reported accuracy stays -1', () async {
+    final orient = StreamController<rs.OrientationEvent>();
+    final mag = StreamController<MagnetometerEvent>();
+    final c = CompassInstrument(orientation: orient.stream, mag: mag.stream);
+    final first = c.live().first;
+    mag.add(MagnetometerEvent(0, 30, -40, DateTime(2026)));
+    orient.add(turned(10));
+    expect((await first).values['accuracy'], -1);
   });
 }

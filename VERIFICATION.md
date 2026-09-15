@@ -5,9 +5,13 @@ or to permissions, on the phone, and tick what you saw.
 
 1. Launch: plain skin; rail shows Motion, Compass, Location, Weather, Records, Settings.
    Any instrument missing = its `isAvailable()` said no — check `adb logcat | grep -i sensor`.
-2. Motion: tilt the phone; the bubble moves opposite to the tilt; `g` reads ~1.000 at rest.
-3. Compass: rotate; heading changes smoothly; N on the dial points to magnetic north
-   (compare with another compass app). Field reads 25–65 µT away from metal.
+2. Motion: tilt the phone; the bubble moves to the HIGH side (right edge down → bubble
+   left; nose up → bubble up); `g` reads ~1.000 at rest.
+3. Compass: rotate; heading changes smoothly and is steady when the phone is still (it is
+   the OS's fused rotation-vector sensor, not the raw magnetometer). N on the dial points to
+   magnetic north — a maps app shows TRUE north, so expect them to differ by the local
+   declination. Field reads 25–65 µT away from metal. "Accuracy" is the OS's own estimate;
+   ±30° means "calibrate me" (figure-8 the phone).
 4. Location: first open asks for location permission → allow "while using". Lat/lon appear
    within a minute outdoors. Deny instead → the band says "Location permission needed" with
    Retry and App settings; the record button is disabled.
@@ -38,3 +42,4 @@ Record the phone model and Android version with each run:
 
 | Date | Phone | Android | Result |
 |---|---|---|---|
+| 2026-09-14 | Pixel 9 Pro XL | 17 | 1–11 pass. Found and fixed the same day: raw-magnetometer heading wandered ~9° at rest → switched to the fused rotation-vector sensor; sessions ran at ~100 Hz → throttled to the display rate; stored values unrounded; run table showed minutes only; CSV named `compass-compass-…`; app label `orctool`. Background logs (10, 11) proven with the app's process killed: Location fix at 22:22 under the "all the time" grant, Weather fetch at 22:24. Not walked: 4's deny branch, 5's airplane-mode wait, 12 (at ~9 Hz a 10-min Motion session is ~1 MB — the cap is exercised by unit tests and the emulator), 13. |

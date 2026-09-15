@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_rotation_sensor/flutter_rotation_sensor.dart' as rs;
 import 'package:sensors_plus/sensors_plus.dart';
 
 import '../core/instrument.dart';
@@ -8,52 +9,26 @@ import '../skins/skin.dart';
 import 'detail_grid.dart';
 import 'sensor_util.dart';
 
-/// Android's getRotationMatrix + getOrientation, reduced to the azimuth:
-/// H = E × A (east), M = A × H (north), of which only My is needed; azimuth = atan2(Hy, My).
-double headingDegrees({required double ax, required double ay, required double az, required double mx, required double my, required double mz}) {
-  var hx = my * az - mz * ay, hy = mz * ax - mx * az, hz = mx * ay - my * ax;
-  final hn = sqrt(hx * hx + hy * hy + hz * hz);
-  if (hn == 0) return 0;
-  hx /= hn; hy /= hn; hz /= hn;
-  final an = sqrt(ax * ax + ay * ay + az * az);
-  final nx = ax / an, nz = az / an;
-  final my_ = nz * hx - nx * hz; // M = A × H, y component
-  final deg = atan2(hy, my_) * 180 / pi;
-  return (deg + 360) % 360;
-}
-
-/// Exponential smoothing on the heading's unit vector, so 359° and 1° average
-/// to 0°, not 180°. A raw magnetometer heading jitters by several degrees at rest.
-class HeadingSmoother {
-  HeadingSmoother({this.alpha = 0.2});
-  final double alpha;
-  double _x = 0, _y = 0;
-  bool _seeded = false;
-
-  double add(double degrees) {
-    final r = degrees * pi / 180;
-    final (sx, sy) = (sin(r), cos(r));
-    if (!_seeded) {
-      _x = sx;
-      _y = sy;
-      _seeded = true;
-    } else {
-      _x += alpha * (sx - _x);
-      _y += alpha * (sy - _y);
-    }
-    return (atan2(_x, _y) * 180 / pi + 360) % 360;
-  }
-}
-
 const _points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 String cardinal(double deg) => _points[((deg + 11.25) % 360 ~/ 22.5)];
 
+/// Heading from the platform's fused rotation-vector sensor (gyro-stabilised,
+/// OS-calibrated). Slice 1 first derived it from the raw magnetometer and
+/// accelerometer; on a Pixel 9 that wandered ~9° at rest, and smoothing did not
+/// help because the wander is slow (a calibration/environment effect, not noise).
+/// The magnetometer stays for field strength.
 class CompassInstrument extends Instrument {
-  CompassInstrument({Stream<AccelerometerEvent>? accel, Stream<MagnetometerEvent>? mag})
-      : _accel = accel ?? accelerometerEventStream(samplingPeriod: SensorInterval.uiInterval),
+  CompassInstrument({Stream<rs.OrientationEvent>? orientation, Stream<MagnetometerEvent>? mag})
+      : _orientation = orientation ?? _platformOrientation(),
         _mag = mag ?? magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval);
 
-  final Stream<AccelerometerEvent> _accel;
+  static Stream<rs.OrientationEvent> _platformOrientation() {
+    rs.RotationSensor.samplingPeriod = SensorInterval.uiInterval;
+    rs.RotationSensor.referenceFrame = rs.ReferenceFrame.magneticNorth;
+    return rs.RotationSensor.orientationStream;
+  }
+
+  final Stream<rs.OrientationEvent> _orientation;
   final Stream<MagnetometerEvent> _mag;
 
   @override
@@ -64,20 +39,19 @@ class CompassInstrument extends Instrument {
   bool get canLog => true;
 
   @override
-  Future<bool> isAvailable() => firstEventWithin(_mag, const Duration(seconds: 2));
+  Future<bool> isAvailable() => firstEventWithin(_orientation, const Duration(seconds: 2));
 
+  /// `accuracy` is degrees, or -1 when the platform does not report one.
   @override
-  Stream<Reading> live() {
-    final smooth = HeadingSmoother();
-    return throttle(merge2(_accel, _mag), SensorInterval.uiInterval).map((e) {
-        final (a, m) = e;
+  Stream<Reading> live() => throttle(merge2(_orientation, _mag), SensorInterval.uiInterval).map((e) {
+        final (o, m) = e;
         return Reading(DateTime.now(), {
-          'heading': smooth.add(headingDegrees(ax: a.x, ay: a.y, az: a.z, mx: m.x, my: m.y, mz: m.z)),
+          'heading': (o.eulerAngles.azimuth * 180 / pi + 360) % 360,
+          'accuracy': o.accuracy < 0 ? -1 : o.accuracy * 180 / pi,
           'field': sqrt(m.x * m.x + m.y * m.y + m.z * m.z),
           'mx': m.x, 'my': m.y, 'mz': m.z,
         });
       });
-  }
 
   @override
   Future<Reading> sample() => live().first;
@@ -98,6 +72,7 @@ class CompassInstrument extends Instrument {
   @override
   Widget buildDetail(BuildContext context, Reading? r) => DetailGrid({
         'Field': r == null ? '—' : '${r.values['field']!.toStringAsFixed(1)} µT',
+        'Accuracy': r == null || r.values['accuracy']! < 0 ? '—' : '±${r.values['accuracy']!.toStringAsFixed(0)}°',
         'X Y Z': r == null ? '—' : '${r.values['mx']!.toStringAsFixed(1)} ${r.values['my']!.toStringAsFixed(1)} ${r.values['mz']!.toStringAsFixed(1)}',
       });
 }
