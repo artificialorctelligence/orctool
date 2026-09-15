@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'core/prefs.dart';
@@ -14,7 +14,7 @@ import 'shell/settings_screen.dart';
 import 'shell/shell.dart';
 import 'skins/all.dart';
 
-Future<String> _dbPath() async => '${(await getApplicationDocumentsDirectory()).path}/readings.db';
+Future<String> _dbPath() async => '${await getDatabasesPath()}/readings.db';
 
 /// WorkManager's entry point: runs in a background isolate with no UI. The
 /// task name is the instrument id (WorkmanagerScheduler).
