@@ -22,6 +22,29 @@ double headingDegrees({required double ax, required double ay, required double a
   return (deg + 360) % 360;
 }
 
+/// Exponential smoothing on the heading's unit vector, so 359° and 1° average
+/// to 0°, not 180°. A raw magnetometer heading jitters by several degrees at rest.
+class HeadingSmoother {
+  HeadingSmoother({this.alpha = 0.2});
+  final double alpha;
+  double _x = 0, _y = 0;
+  bool _seeded = false;
+
+  double add(double degrees) {
+    final r = degrees * pi / 180;
+    final (sx, sy) = (sin(r), cos(r));
+    if (!_seeded) {
+      _x = sx;
+      _y = sy;
+      _seeded = true;
+    } else {
+      _x += alpha * (sx - _x);
+      _y += alpha * (sy - _y);
+    }
+    return (atan2(_x, _y) * 180 / pi + 360) % 360;
+  }
+}
+
 const _points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 String cardinal(double deg) => _points[((deg + 11.25) % 360 ~/ 22.5)];
 
@@ -44,14 +67,17 @@ class CompassInstrument extends Instrument {
   Future<bool> isAvailable() => firstEventWithin(_mag, const Duration(seconds: 2));
 
   @override
-  Stream<Reading> live() => merge2(_accel, _mag).map((e) {
+  Stream<Reading> live() {
+    final smooth = HeadingSmoother();
+    return throttle(merge2(_accel, _mag), SensorInterval.uiInterval).map((e) {
         final (a, m) = e;
         return Reading(DateTime.now(), {
-          'heading': headingDegrees(ax: a.x, ay: a.y, az: a.z, mx: m.x, my: m.y, mz: m.z),
+          'heading': smooth.add(headingDegrees(ax: a.x, ay: a.y, az: a.z, mx: m.x, my: m.y, mz: m.z)),
           'field': sqrt(m.x * m.x + m.y * m.y + m.z * m.z),
           'mx': m.x, 'my': m.y, 'mz': m.z,
         });
       });
+  }
 
   @override
   Future<Reading> sample() => live().first;

@@ -27,4 +27,23 @@ void main() {
     expect(a.hasListener, isFalse, reason: 'cancel propagates');
     expect(b.hasListener, isFalse, reason: 'cancel propagates to both');
   });
+  throttleTests();
+}
+
+void throttleTests() {
+  test('throttle lets one event through per period', () async {
+    var t = DateTime(2026, 9, 14, 12);
+    final ctl = StreamController<int>();
+    final out = <int>[];
+    final sub = throttle(ctl.stream, const Duration(milliseconds: 66), now: () => t).listen(out.add);
+    for (var i = 0; i < 5; i++) {
+      ctl.add(i); // all "at once"
+    }
+    await Future<void>.delayed(Duration.zero);
+    t = t.add(const Duration(milliseconds: 70));
+    ctl.add(5);
+    await Future<void>.delayed(Duration.zero);
+    expect(out, [0, 5]);
+    await sub.cancel();
+  });
 }

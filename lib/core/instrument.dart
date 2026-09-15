@@ -82,5 +82,8 @@ abstract class Instrument {
 
   String logSummary(LogSettings s) => 'Log: ${s.interval.label}';
 
-  Map<String, num> toRow(Reading r) => r.values;
+  /// Five decimals: 1 m of latitude, and far below any sensor's noise floor.
+  Map<String, num> toRow(Reading r) => {
+        for (final e in r.values.entries) e.key: e.value is int ? e.value : (e.value * 100000).round() / 100000,
+      };
 }

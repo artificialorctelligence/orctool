@@ -117,6 +117,12 @@ class RunScreen extends StatelessWidget {
 
   static const _cellWidth = 120.0;
 
+  /// HH:MM:SS.mmm — rows are milliseconds apart; minutes alone tell nothing.
+  static String _clock(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}.${t.millisecond.toString().padLeft(3, '0')}';
+  }
+
   Widget _cell(BuildContext context, String s, {bool head = false}) {
     final orc = OrcTheme.of(context);
     return SizedBox(
@@ -154,7 +160,7 @@ class RunScreen extends StatelessWidget {
                         itemCount: rows.length,
                         itemBuilder: (context, i) => Row(children: [
                           for (final c in cols)
-                            _cell(context, c == 'ts' ? TimeOfDay.fromDateTime((rows[i]['ts'] as DateTime).toLocal()).format(context) : '${rows[i][c] ?? ''}'),
+                            _cell(context, c == 'ts' ? _clock((rows[i]['ts'] as DateTime).toLocal()) : '${rows[i][c] ?? ''}'),
                         ]),
                       ),
                     ),
@@ -165,7 +171,7 @@ class RunScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8),
               child: FilledButton.icon(
-                onPressed: () => share(toCsv(rows), '${run.instrument}-${run.runId}.csv'),
+                onPressed: () => share(toCsv(rows), '${run.runId}.csv'),
                 icon: const Icon(Icons.share),
                 label: Text(orc.text('Export CSV')),
               ),

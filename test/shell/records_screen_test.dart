@@ -85,6 +85,6 @@ void main() {
     expect(find.text('248'), findsOneWidget);
     await t.tap(find.byIcon(Icons.share));
     await t.pumpAndSettle();
-    expect(shared, startsWith('compass-s1.csv\nts,heading\n'));
+    expect(shared, startsWith('s1.csv\nts,heading\n'));
   });
 }

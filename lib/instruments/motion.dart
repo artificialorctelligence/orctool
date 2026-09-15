@@ -43,7 +43,7 @@ class MotionInstrument extends Instrument {
   Future<bool> isAvailable() => firstEventWithin(_accel, const Duration(seconds: 2));
 
   @override
-  Stream<Reading> live() => merge2(_accel, _gyro).map((e) {
+  Stream<Reading> live() => throttle(merge2(_accel, _gyro), SensorInterval.uiInterval).map((e) {
         final (a, w) = e;
         final t = tilt(a.x, a.y, a.z);
         return Reading(DateTime.now(), {

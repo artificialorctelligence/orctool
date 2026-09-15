@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orctool/instruments/compass.dart';
@@ -40,5 +41,28 @@ void main() {
     expect(r.values['heading'], closeTo(0, 0.01));
     expect(r.values['field'], closeTo(50, 0.01));
     expect(c.id, 'compass');
+  });
+  smootherTests();
+}
+
+void smootherTests() {
+  test('HeadingSmoother converges to a constant input and averages across north correctly', () {
+    final s = HeadingSmoother();
+    double h = 0;
+    for (var i = 0; i < 40; i++) {
+      h = s.add(90);
+    }
+    expect(h, closeTo(90, 0.01));
+    final n = HeadingSmoother(alpha: 0.5);
+    n.add(359);
+    expect(n.add(1), closeTo(0, 0.01), reason: 'wraps through north, not through 180');
+  });
+
+  test('a jittering input is steadier after smoothing', () {
+    final s = HeadingSmoother();
+    final raw = [50.0, 56.0, 45.0, 55.0, 47.0, 53.0, 46.0, 54.0, 49.0, 51.0];
+    final smoothed = raw.map(s.add).toList();
+    double spread(List<double> xs) => xs.reduce(max) - xs.reduce(min);
+    expect(spread(smoothed.sublist(5)), lessThan(spread(raw.sublist(5)) / 2));
   });
 }

@@ -19,6 +19,7 @@ void main() {
     final i = FakeInstrument();
     final r = Reading(DateTime(2026, 9, 13), const {'x': 1.5});
     expect(i.toRow(r), {'x': 1.5});
+    expect(i.toRow(Reading(DateTime(2026), const {'d': 51.231496247, 'n': 3})), {'d': 51.2315, 'n': 3});
     expect(i.logSummary(const LogSettings(interval: LogInterval.m15)), 'Log: 15 min');
     expect(i.logPrecondition(), completion(isNull));
   });
