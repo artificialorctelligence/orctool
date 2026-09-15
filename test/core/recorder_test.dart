@@ -15,6 +15,38 @@ class ErrorInstrument extends FakeInstrument {
   }
 }
 
+/// A session instrument whose stream never completes on its own (no onDone) —
+/// used wherever a test needs to observe recorder state well after the single
+/// reading was written, without the natural end-of-stream racing it.
+class OpenInstrument extends FakeInstrument {
+  OpenInstrument({super.id = 'open', super.script});
+  @override
+  Stream<Reading> live() {
+    late StreamController<Reading> c;
+    c = StreamController<Reading>(onListen: () => Future.microtask(() => c.add(script.first)));
+    return c.stream;
+  }
+}
+
+/// Emits one reading then a stream error (triggering _fail's fire-and-forget
+/// stop()), but its subscription takes 20 ms to actually cancel — wide enough
+/// to start a new session while that stop() is still mid-flight.
+class SlowCancelErrorInstrument extends FakeInstrument {
+  SlowCancelErrorInstrument() : super(id: 'slowCancel');
+  @override
+  Stream<Reading> live() {
+    late StreamController<Reading> controller;
+    controller = StreamController<Reading>(
+      onListen: () => Future.microtask(() {
+        controller.add(script.first);
+        controller.addError(StateError('sensor gone'));
+      }),
+      onCancel: () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    return controller.stream;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final t0 = DateTime(2026, 9, 13, 12);
@@ -65,6 +97,36 @@ void main() {
     expect(rec.recording, isFalse);
     expect(rec.error, contains('sensor gone'));
     expect((await store.runs()).single.rows, 1);
+  });
+
+  test('a store write failure ends the session with a visible error', () async {
+    final store = await memoryStore();
+    await store.close();
+    final rec = Recorder(store, await memoryPrefs());
+    rec.start(OpenInstrument());
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(rec.error, contains('Could not save'));
+    expect(rec.recording, isFalse);
+  });
+
+  test("_fail's fire-and-forget stop() cannot orphan a session started while it is still cancelling", () async {
+    final store = await memoryStore();
+    final rec = Recorder(store, await memoryPrefs());
+    rec.start(SlowCancelErrorInstrument());
+    // Let the reading + error land: onError -> _fail -> stop() (unawaited), now
+    // 20 ms into cancelling. A correct stop() has already cleared _sub by now
+    // (before awaiting cancel), so recording reads false here.
+    await Future<void>.delayed(Duration.zero);
+    expect(rec.recording, isFalse);
+    final b = OpenInstrument(id: 'b', script: [Reading(t0, const {'v': 2})]);
+    await rec.start(b); // races the still-in-flight cancel() from the earlier stop()
+    // Wait past that 20 ms cancel: a buggy stop() that nulls _sub *after* the
+    // await would clobber B's subscription here.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(rec.recording, isTrue);
+    expect(rec.instrument, same(b));
+    expect(rec.error, isNull, reason: "B's own start() resets error; A's failure must not leak into B");
+    await rec.stop();
   });
 
   test('a scheduled sample writes one log row under the log run, silently skips failures', () async {
