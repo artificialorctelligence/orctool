@@ -48,8 +48,22 @@ class WeatherInstrument extends Instrument {
 
   @override
   Future<Reading> sample() async {
-    final p = await _loc.current(accuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 20));
-    final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {'latitude': '${p.latitude}', 'longitude': '${p.longitude}', 'current': _fields});
+    double lat, lon;
+    try {
+      final p = await _loc.current(accuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 10));
+      (lat, lon) = (p.latitude, p.longitude);
+    } catch (_) {
+      // No fix (typically: a background worker without the background-location grant) —
+      // use the last foreground fix; weather at 1 km resolution does not need better.
+      final last = _loc.lastFix;
+      if (last == null) throw StateError('No position yet — open Location once');
+      (lat, lon) = (last.lat, last.lon);
+    }
+    final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
+      'latitude': lat.toStringAsFixed(2), // ~1 km: "approximate location" for Data safety
+      'longitude': lon.toStringAsFixed(2),
+      'current': _fields,
+    });
     final res = await _client.get(uri).timeout(const Duration(seconds: 15));
     if (res.statusCode != 200) throw Exception('Weather service returned ${res.statusCode}');
     final cur = ((jsonDecode(res.body) as Map)['current'] as Map).cast<String, Object?>();
@@ -66,8 +80,8 @@ class WeatherInstrument extends Instrument {
       'wind': field('wind_speed_10m', 0),
       'wind_dir': field('wind_direction_10m', 0),
       'code': field('weather_code', 0),
-      'lat': p.latitude,
-      'lon': p.longitude,
+      'lat': lat,
+      'lon': lon,
     });
   }
 

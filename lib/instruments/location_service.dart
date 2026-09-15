@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 
+import '../core/prefs.dart';
+
 class LocationDenied implements Exception {
   LocationDenied(this.message);
   final String message;
@@ -9,6 +11,14 @@ class LocationDenied implements Exception {
 
 /// The one place geolocator is called. Location and Weather share it.
 class LocationService {
+  LocationService({this.prefs});
+  final Prefs? prefs;
+
+  /// The last position any foreground fix delivered; a background sample's fallback.
+  ({double lat, double lon})? get lastFix => prefs?.lastFix;
+
+  void _remember(Position p) => prefs?.setLastFix(p.latitude, p.longitude);
+
   Future<void> ensurePermission() async {
     if (!await Geolocator.isLocationServiceEnabled()) throw LocationDenied('Location is turned off on this phone');
     var p = await Geolocator.checkPermission();
@@ -19,12 +29,17 @@ class LocationService {
 
   Future<Position> current({LocationAccuracy accuracy = LocationAccuracy.high, Duration timeLimit = const Duration(seconds: 30)}) async {
     await ensurePermission();
-    return Geolocator.getCurrentPosition(locationSettings: LocationSettings(accuracy: accuracy, timeLimit: timeLimit));
+    final p = await Geolocator.getCurrentPosition(locationSettings: LocationSettings(accuracy: accuracy, timeLimit: timeLimit));
+    _remember(p);
+    return p;
   }
 
   Stream<Position> stream() async* {
     await ensurePermission();
-    yield* Geolocator.getPositionStream(locationSettings: const LocationSettings(accuracy: LocationAccuracy.best));
+    yield* Geolocator.getPositionStream(locationSettings: const LocationSettings(accuracy: LocationAccuracy.best)).map((p) {
+      _remember(p);
+      return p;
+    });
   }
 
   Future<bool> hasBackground() async => await Geolocator.checkPermission() == LocationPermission.always;

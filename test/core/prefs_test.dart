@@ -52,4 +52,14 @@ void main() {
     expect(p.logging, isEmpty);
     expect(p.logRun('b'), isNull);
   });
+
+  test('setLastFix persists silently: no notify, readable from a fresh open', () async {
+    var notified = 0;
+    p.addListener(() => notified++);
+    expect(p.lastFix, isNull);
+    await p.setLastFix(51.5, -0.12);
+    expect(notified, 0, reason: 'a 1 Hz fix must not rebuild listeners');
+    final q = await Prefs.open(); // same in-memory platform instance
+    expect(q.lastFix, (lat: 51.5, lon: -0.12));
+  });
 }

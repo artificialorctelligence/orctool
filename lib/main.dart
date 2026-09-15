@@ -22,9 +22,9 @@ Future<String> _dbPath() async => '${await getDatabasesPath()}/readings.db';
 void callbackDispatcher() {
   Workmanager().executeTask((task, _) async {
     WidgetsFlutterBinding.ensureInitialized();
-    final i = allInstruments().where((i) => i.id == task).firstOrNull;
-    if (i == null) return true;
     final prefs = await Prefs.open();
+    final i = allInstruments(prefs).where((i) => i.id == task).firstOrNull;
+    if (i == null) return true;
     final store = await Store.open(await _dbPath(), shared: false);
     try {
       await runScheduledSample(i, store, prefs);
@@ -40,7 +40,7 @@ Future<void> main() async {
   await Workmanager().initialize(callbackDispatcher);
   final prefs = await Prefs.open();
   final store = await Store.open(await _dbPath());
-  final registry = Registry(allInstruments(), prefs, WorkmanagerScheduler());
+  final registry = Registry(allInstruments(prefs), prefs, WorkmanagerScheduler());
   await registry.probe();
   runApp(OrctoolApp(prefs: prefs, store: store, registry: registry, recorder: Recorder(store, prefs)));
 }

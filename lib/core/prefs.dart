@@ -25,6 +25,14 @@ class Prefs extends ChangeNotifier {
   }
   String? logRun(String id) => _p.getString('logrun.$id');
 
+  /// The last position any foreground fix delivered; a background sample's fallback.
+  ({double lat, double lon})? get lastFix {
+    final s = _p.getString('lastFix');
+    if (s == null) return null;
+    final parts = s.split(',');
+    return (lat: double.parse(parts[0]), lon: double.parse(parts[1]));
+  }
+
   Future<void> setRailOut(bool v) => _set(() => _p.setBool('railOut', v));
   Future<void> setSkinId(String v) => _set(() => _p.setString('skin', v));
   Future<void> setLimits(Limits l) => _set(() async {
@@ -36,6 +44,9 @@ class Prefs extends ChangeNotifier {
   Future<void> setLogging(String id, bool on) => _toggle('logging', id, on);
   Future<void> setLogSettings(String id, LogSettings s) => _set(() => _p.setString('log.$id', jsonEncode(s.toJson())));
   Future<void> setLogRun(String id, String? runId) => _set(() => runId == null ? _p.remove('logrun.$id') : _p.setString('logrun.$id', runId));
+
+  /// Deliberately silent: written on every fix, must not rebuild listeners.
+  Future<void> setLastFix(double lat, double lon) => _p.setString('lastFix', '$lat,$lon');
 
   Future<void> _toggle(String key, String id, bool on) => _set(() {
         final s = (_p.getStringList(key) ?? const []).toSet();

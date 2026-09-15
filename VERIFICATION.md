@@ -22,6 +22,9 @@ or to permissions, on the phone, and tick what you saw.
    the rail; unhide it.
 10. Logging, Weather: Log on, details: every 15 min. Close the app fully. After ~20–30 min
     (Android may delay it), reopen: Records shows a Log run for Weather with ≥1 row.
+    A closed app cannot get a GPS fix without the "all the time" grant; Weather uses the
+    last foreground fix instead — open Location once first. To re-run the worker
+    immediately, toggle Weather's Log off and on (it re-registers and runs once).
 11. Logging, Location: Log on → blocked with the "all the time" message. Details → Allow all
     the time → the system settings page; choose "Allow all the time"; back; Log on succeeds.
     Close the app; after the interval, Records shows a Location log row.

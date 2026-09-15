@@ -20,9 +20,13 @@ class _FakeGeo extends GeolocatorPlatform with MockPlatformInterfaceMixin {
 }
 
 class FakeLocation extends LocationService {
-  FakeLocation({this.permitted = true, this.background = false});
+  FakeLocation({this.permitted = true, this.background = false, this.fix});
   bool permitted, background;
+  ({double lat, double lon})? fix;
   static final pos = Position(latitude: 51.5, longitude: -0.12, timestamp: DateTime(2026, 9, 13), accuracy: 5, altitude: 312, altitudeAccuracy: 3, heading: 0, headingAccuracy: 0, speed: 1.2, speedAccuracy: 0.5);
+
+  @override
+  ({double lat, double lon})? get lastFix => fix;
 
   @override
   Future<void> ensurePermission() async {

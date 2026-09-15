@@ -20,7 +20,7 @@ void main() {
     });
     final r = await WeatherInstrument(FakeLocation(), client: client).sample();
     expect(seen!.host, 'api.open-meteo.com');
-    expect(seen!.queryParameters['latitude'], '51.5');
+    expect(seen!.queryParameters['latitude'], '51.50');
     expect(seen!.queryParameters['current'], contains('temperature_2m'));
     expect(r.values['temp'], 19.3);
     expect(r.values['humidity'], 94);
@@ -55,6 +55,24 @@ void main() {
     expect(r.values['temp'], 19.3);
     const noTemp = '{"current":{"time":"2026-09-14T02:15","relative_humidity_2m":94}}';
     expect(WeatherInstrument(FakeLocation(), client: MockClient((_) async => http.Response(noTemp, 200))).sample(), throwsFormatException);
+  });
+
+  test('no foreground fix falls back to the last remembered position', () async {
+    Uri? seen;
+    final client = MockClient((req) async {
+      seen = req.url;
+      return http.Response(_body, 200);
+    });
+    final loc = FakeLocation(permitted: false, fix: (lat: 40.0, lon: -3.7));
+    final r = await WeatherInstrument(loc, client: client).sample();
+    expect(seen!.queryParameters['latitude'], '40.00');
+    expect(seen!.queryParameters['longitude'], '-3.70');
+    expect(r.values['lat'], 40.0);
+  });
+
+  test('no fix and no remembered position is an error', () {
+    final loc = FakeLocation(permitted: false);
+    expect(WeatherInstrument(loc, client: MockClient((_) async => http.Response(_body, 200))).sample(), throwsA(isA<StateError>()));
   });
 
   test('describeWmo', () {
