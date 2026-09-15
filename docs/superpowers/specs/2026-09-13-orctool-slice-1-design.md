@@ -173,12 +173,18 @@ event; the stream is throttled to the display refresh rate.
 | Instrument | Android permission | Asked when | Play consequence |
 |---|---|---|---|
 | Motion, Compass | none | — | none |
-| Weather | `INTERNET` | — | Data safety: approximate location is sent to Open-Meteo; privacy policy says so |
+| Weather | `INTERNET` | — | Data safety: approximate location (2 decimals, ~1 km) is sent to Open-Meteo; privacy policy says so |
 | Location, live/session | `ACCESS_FINE_LOCATION` | first open of the instrument | Data safety: location collected, kept on device |
 | Location, log | `ACCESS_BACKGROUND_LOCATION` | when logging is turned on in its details page, after an in-app explanation screen (Play's prominent-disclosure rule) | background-location declaration + demo video at review |
 
-Scheduled sampling needs no extra permission; battery optimisation may delay it and the details
-page says so rather than fighting it.
+Scheduled sampling needs no extra permission of its own; battery optimisation may delay it and
+the details page says so rather than fighting it. **But a closed app gets no GPS fix without the
+background-location grant** (Android 10+), so a scheduled sample that needs a position cannot
+rely on one: `LocationService` remembers the last foreground fix in `Prefs`, and Weather's
+`sample()` tries a short fix, then falls back to that (and errors, silently per §5, only if the
+phone has never had a fix — VERIFICATION.md item 10 says "open Location once first"). Location's
+own scheduled sample keeps requiring the grant; that is the point of it. *(Amended 2026-09-14
+after the emulator run showed the original text was wrong.)*
 
 iOS, carried by the contract now, built later: `canLog` is per platform, so Location's stays
 false on iOS until an "Always"-authorisation flow exists; Weather's is true (`BGAppRefreshTask`).
@@ -194,8 +200,10 @@ that ingredient, and the Flutter stack skill with it.
 
 - Unavailable at launch → not registered; nothing to handle later.
 - Permission denied → the live band shows one line and a button that re-asks or opens app
-  settings; the recording bar is disabled. Background permission denied → the log toggle snaps
-  back off with the same line on the details page.
+  settings; the recording bar is disabled. Background permission denied → the log toggle stays
+  off and the Instruments page shows the reason in a snackbar pointing at Details, where the
+  "Allow all the time" button re-checks when the app comes back from system Settings.
+  *(Amended 2026-09-14 to match what was built.)*
 - Sensor stream error → "no data" in the live band; a running session keeps its rows and stops
   cleanly.
 - `sample()` fails in the background (no fix, no network, timeout) → no row, silently; the gap is
