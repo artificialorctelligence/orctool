@@ -1,17 +1,10 @@
-# orctool
+# Orctool
 
-A new Flutter project.
+A tricorder-style instrument app for Android (and, later, iOS): the phone's real sensors and
+free online services, presented as instruments, with recording. Skinnable.
 
-## Getting Started
+Design: `docs/superpowers/specs/2026-09-13-orctool-slice-1-design.md`. Plan:
+`docs/superpowers/plans/2026-09-13-orctool-slice-1.md`. On-phone checks: `VERIFICATION.md`.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+    flutter analyze --fatal-infos && flutter test
+    flutter run
