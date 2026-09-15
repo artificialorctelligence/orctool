@@ -69,6 +69,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.textContaining('Could not read records'), findsOneWidget);
     expect(find.text('Nothing recorded yet'), findsNothing);
+    expect(find.textContaining('0.00 MB'), findsNothing);
   });
 
   testWidgets('tapping a run opens its table; share hands over CSV', (t) async {

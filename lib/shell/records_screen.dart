@@ -89,7 +89,12 @@ class _RecordsScreenState extends State<RecordsScreen> {
       const SizedBox(height: 8),
       FutureBuilder<int>(
         future: _total,
-        builder: (context, snap) => Text('${orc.text('Storage')}: ${_mb(snap.data ?? 0)} of ${_mb(widget.prefs.limits.capBytes)}', style: chipStyle),
+        builder: (context, snap) => Text(
+          snap.hasError
+              ? '${orc.text('Storage')}: ${snap.error}'
+              : '${orc.text('Storage')}: ${_mb(snap.data ?? 0)} of ${_mb(widget.prefs.limits.capBytes)}',
+          style: chipStyle,
+        ),
       ),
     ]);
   }
