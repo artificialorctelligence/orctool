@@ -25,7 +25,7 @@ void callbackDispatcher() {
     final i = allInstruments().where((i) => i.id == task).firstOrNull;
     if (i == null) return true;
     final prefs = await Prefs.open();
-    final store = await Store.open(await _dbPath());
+    final store = await Store.open(await _dbPath(), shared: false);
     try {
       await runScheduledSample(i, store, prefs);
     } finally {

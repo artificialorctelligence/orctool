@@ -61,6 +61,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
         child: FutureBuilder<List<RunSummary>>(
           future: _runs,
           builder: (context, snap) {
+            if (snap.hasError) return Center(child: Text('${orc.text('Could not read records')}: ${snap.error}', style: chipStyle));
             final runs = snap.data ?? const <RunSummary>[];
             if (snap.hasData && runs.isEmpty) return Center(child: Text(orc.text('Nothing recorded yet'), style: chipStyle));
             return ListView(children: [
@@ -131,6 +132,7 @@ class RunScreen extends StatelessWidget {
       body: FutureBuilder<List<Map<String, Object?>>>(
         future: store.rows(run.runId),
         builder: (context, snap) {
+          if (snap.hasError) return Center(child: Text('${snap.error}'));
           final rows = snap.data;
           if (rows == null) return const Center(child: CircularProgressIndicator());
           final cols = columnsOf(rows);

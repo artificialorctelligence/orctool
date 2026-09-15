@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orctool/core/store.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../fakes.dart';
 
@@ -51,5 +52,19 @@ void main() {
 
   test('kind is constrained to session or log', () async {
     await expectLater(put('r', t0, kind: 'bogus'), throwsA(anything));
+  });
+
+  // In-memory databases are never shared by path regardless of the `shared` flag (each
+  // `inMemoryDatabasePath` open is its own instance, per sqflite), so this only proves the
+  // flag is accepted and that closing one Store's connection doesn't touch another's — it is
+  // not a reproduction of the real bug (two connections sharing one on-disk path). That was
+  // proven on the emulator: see task-15-report.md, fix round 2.
+  test('a private connection can be closed without affecting a shared one', () async {
+    final a = await Store.open(inMemoryDatabasePath);
+    final b = await Store.open(inMemoryDatabasePath, shared: false);
+    await b.close();
+    await a.insert(instrument: 'compass', runId: 'r1', kind: 'session', ts: t0, data: {'heading': 1}, limits: const Limits());
+    expect(await a.totalBytes(), greaterThan(0));
+    await a.close();
   });
 }

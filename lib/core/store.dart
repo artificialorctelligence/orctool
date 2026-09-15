@@ -24,10 +24,13 @@ class Store {
   final Database _db;
   int _total = 0;
 
-  static Future<Store> open(String path) async {
+  /// [shared] = false opens a private connection (sqflite otherwise hands every
+  /// caller in the process the same native handle per path — closing it would
+  /// close it for everyone). The WorkManager isolate uses false.
+  static Future<Store> open(String path, {bool shared = true}) async {
     // In-memory databases must not be cached by path (the sqflite default):
     // otherwise every open of ':memory:' returns the same shared instance.
-    final db = await openDatabase(path, version: 1, singleInstance: path != inMemoryDatabasePath, onCreate: (db, _) async {
+    final db = await openDatabase(path, version: 1, singleInstance: shared && path != inMemoryDatabasePath, onCreate: (db, _) async {
       await db.execute(
           "CREATE TABLE readings(id INTEGER PRIMARY KEY, instrument TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL, CHECK(kind IN ('session','log')))");
       await db.execute('CREATE INDEX idx_inst_ts ON readings(instrument, ts)');

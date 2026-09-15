@@ -63,6 +63,14 @@ void main() {
     expect(find.text('Weather'), findsOneWidget);
   });
 
+  testWidgets('a store query error surfaces as text instead of an empty list', (t) async {
+    await store.close(); // closed db throws on the next query, the way a stale cross-isolate connection would
+    await t.pumpWidget(MaterialApp(theme: skinById('plain').light, home: Scaffold(body: RecordsScreen(store: store, registry: reg, prefs: reg.prefs))));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Could not read records'), findsOneWidget);
+    expect(find.text('Nothing recorded yet'), findsNothing);
+  });
+
   testWidgets('tapping a run opens its table; share hands over CSV', (t) async {
     String? shared;
     await t.pumpWidget(MaterialApp(
