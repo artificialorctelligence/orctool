@@ -55,6 +55,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const Key('log-a')), findsOneWidget);
     expect(find.byKey(const Key('log-b')), findsNothing);
+    expect(find.text('Show'), findsOneWidget, reason: 'the switches are labelled');
+    expect(find.text('Log'), findsOneWidget);
     await t.tap(find.byKey(const Key('show-b')));
     await t.pumpAndSettle();
     expect(reg.isShown('b'), isFalse);

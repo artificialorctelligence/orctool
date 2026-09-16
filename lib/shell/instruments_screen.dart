@@ -13,7 +13,9 @@ class InstrumentsScreen extends StatelessWidget {
     if (on) {
       final why = await i.logPrecondition();
       if (why != null) {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(why)));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(why)));
+        }
         return;
       }
     }
@@ -23,48 +25,144 @@ class InstrumentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orc = OrcTheme.of(context);
-    final style = TextStyle(color: orc.accent, fontFamily: orc.displayFont, fontWeight: FontWeight.bold);
+    final style = TextStyle(
+      color: orc.accent,
+      fontFamily: orc.displayFont,
+      fontWeight: FontWeight.bold,
+    );
     return Scaffold(
       backgroundColor: orc.ground,
-      appBar: AppBar(backgroundColor: orc.accent, foregroundColor: orc.onAccent, title: Text(orc.text('Instruments'))),
+      appBar: AppBar(
+        backgroundColor: orc.accent,
+        foregroundColor: orc.onAccent,
+        title: Text(orc.text('Instruments')),
+      ),
       body: ListenableBuilder(
         listenable: registry,
         builder: (context, _) {
           final items = registry.ordered;
-          return ReorderableListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: items.length,
-            onReorderItem: registry.reorder,
-            itemBuilder: (context, index) {
-              final i = items[index];
-              return Container(
-                key: ValueKey(i.id),
-                margin: const EdgeInsets.only(bottom: 6),
-                decoration: BoxDecoration(color: orc.panel, borderRadius: BorderRadius.circular(orc.railRadius)),
-                // Material.transparency gives the ListTile its own ink-painting ancestor, so
-                // the opaque decoration above doesn't hide its background/splash (framework assertion otherwise).
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: ListTile(
-                    leading: ReorderableDragStartListener(index: index, child: Icon(Icons.drag_handle, color: orc.accent)),
-                    title: Text(orc.text(i.name), style: style, overflow: TextOverflow.ellipsis),
-                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Tooltip(message: 'Show', child: Switch.adaptive(key: Key('show-${i.id}'), value: registry.isShown(i.id), onChanged: (v) => registry.setShown(i.id, v))),
-                      if (i.canLog) ...[
-                        Tooltip(message: 'Log', child: Switch.adaptive(key: Key('log-${i.id}'), value: registry.isLogging(i.id), onChanged: (v) => _toggleLog(context, i, v))),
-                        IconButton(
-                          key: Key('details-${i.id}'),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 36),
-                          icon: Icon(Icons.chevron_right, color: orc.accent),
-                          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LogSettingsScreen(registry: registry, instrument: i))),
-                        ),
-                      ],
-                    ]),
-                  ),
+          final legend = TextStyle(
+            color: orc.accent.withValues(alpha: 0.7),
+            fontFamily: orc.displayFont,
+            fontSize: 12,
+          );
+          return Column(
+            children: [
+              // Legend for the unlabelled controls on every row, right-aligned over them.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 24, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        orc.text('drag to reorder the rail'),
+                        style: legend,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        orc.text('Show'),
+                        style: legend,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        orc.text('Log'),
+                        style: legend,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 36,
+                      child: Text(
+                        orc.text('More'),
+                        style: legend,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
+              ),
+              Expanded(
+                child: ReorderableListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: items.length,
+                  onReorderItem: registry.reorder,
+                  itemBuilder: (context, index) {
+                    final i = items[index];
+                    return Container(
+                      key: ValueKey(i.id),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: orc.panel,
+                        borderRadius: BorderRadius.circular(orc.railRadius),
+                      ),
+                      // Material.transparency gives the ListTile its own ink-painting ancestor, so
+                      // the opaque decoration above doesn't hide its background/splash (framework assertion otherwise).
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          leading: ReorderableDragStartListener(
+                            index: index,
+                            child: Icon(Icons.drag_handle, color: orc.accent),
+                          ),
+                          title: Text(
+                            orc.text(i.name),
+                            style: style,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Tooltip(
+                                message: 'Show',
+                                child: Switch.adaptive(
+                                  key: Key('show-${i.id}'),
+                                  value: registry.isShown(i.id),
+                                  onChanged: (v) => registry.setShown(i.id, v),
+                                ),
+                              ),
+                              if (i.canLog) ...[
+                                Tooltip(
+                                  message: 'Log',
+                                  child: Switch.adaptive(
+                                    key: Key('log-${i.id}'),
+                                    value: registry.isLogging(i.id),
+                                    onChanged: (v) => _toggleLog(context, i, v),
+                                  ),
+                                ),
+                                IconButton(
+                                  key: Key('details-${i.id}'),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 36,
+                                  ),
+                                  icon: Icon(
+                                    Icons.chevron_right,
+                                    color: orc.accent,
+                                  ),
+                                  onPressed: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => LogSettingsScreen(
+                                        registry: registry,
+                                        instrument: i,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -74,7 +172,11 @@ class InstrumentsScreen extends StatelessWidget {
 
 /// Interval (common) above the instrument's own details form.
 class LogSettingsScreen extends StatefulWidget {
-  const LogSettingsScreen({super.key, required this.registry, required this.instrument});
+  const LogSettingsScreen({
+    super.key,
+    required this.registry,
+    required this.instrument,
+  });
   final Registry registry;
   final Instrument instrument;
 
@@ -94,7 +196,8 @@ class _LogSettingsScreenState extends State<LogSettingsScreen> {
       // The scheduler or prefs refused: revert the form and say so.
       if (!mounted) return;
       setState(() => _s = before);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Could not save: $e')));
     }
   }
 
@@ -103,20 +206,32 @@ class _LogSettingsScreenState extends State<LogSettingsScreen> {
     final orc = OrcTheme.of(context);
     return Scaffold(
       backgroundColor: orc.ground,
-      appBar: AppBar(backgroundColor: orc.accent, foregroundColor: orc.onAccent, title: Text(orc.text('${widget.instrument.name} log'))),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
-        DropdownButtonFormField<LogInterval>(
-          key: const Key('interval'),
-          initialValue: _s.interval,
-          decoration: const InputDecoration(labelText: 'Sample every'),
-          items: [for (final v in LogInterval.values) DropdownMenuItem(value: v, child: Text(v.label))],
-          onChanged: (v) => _update(_s.copyWith(interval: v)),
-        ),
-        const SizedBox(height: 8),
-        const Text('Android may delay a scheduled sample to save battery; the gap shows in Records.'),
-        const SizedBox(height: 16),
-        widget.instrument.buildLogSettings(context, _s, _update),
-      ]),
+      appBar: AppBar(
+        backgroundColor: orc.accent,
+        foregroundColor: orc.onAccent,
+        title: Text(orc.text('${widget.instrument.name} log')),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          DropdownButtonFormField<LogInterval>(
+            key: const Key('interval'),
+            initialValue: _s.interval,
+            decoration: const InputDecoration(labelText: 'Sample every'),
+            items: [
+              for (final v in LogInterval.values)
+                DropdownMenuItem(value: v, child: Text(v.label)),
+            ],
+            onChanged: (v) => _update(_s.copyWith(interval: v)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Android may delay a scheduled sample to save battery; the gap shows in Records.',
+          ),
+          const SizedBox(height: 16),
+          widget.instrument.buildLogSettings(context, _s, _update),
+        ],
+      ),
     );
   }
 }
