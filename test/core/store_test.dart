@@ -67,4 +67,24 @@ void main() {
     expect(await a.totalBytes(), greaterThan(0));
     await a.close();
   });
+  instrumentTests();
+}
+
+void instrumentTests() {
+  late Store store;
+  setUp(() async => store = await memoryStore());
+  tearDown(() => store.close());
+  final t0 = DateTime(2026, 9, 13, 12);
+  Future<void> put(String inst, String run, String kind) =>
+      store.insert(instrument: inst, runId: run, kind: kind, ts: t0, data: {'v': 1}, limits: const Limits());
+
+  test('runs filters by instrument, and deleteInstrument removes only that instrument', () async {
+    await put('compass', 'c1', 'session');
+    await put('compass', 'c2', 'log');
+    await put('weather', 'w1', 'log');
+    expect((await store.runs(instrument: 'compass')).map((r) => r.runId).toSet(), {'c1', 'c2'});
+    expect(await store.deleteInstrument('compass'), 2);
+    expect((await store.runs()).map((r) => r.instrument).toList(), ['weather']);
+    expect(await store.totalBytes(), lessThan(20), reason: 'the cached total follows the delete');
+  });
 }

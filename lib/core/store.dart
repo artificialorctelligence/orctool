@@ -68,14 +68,22 @@ class Store {
     }
   }
 
+  /// Every row of one instrument, sessions and logs alike. Returns the count removed.
+  Future<int> deleteInstrument(String instrument) async {
+    final n = await _db.delete('readings', where: 'instrument = ?', whereArgs: [instrument]);
+    _total = await totalBytes();
+    return n;
+  }
+
   Future<int> totalBytes() async =>
       Sqflite.firstIntValue(await _db.rawQuery('SELECT COALESCE(SUM(LENGTH(data)), 0) FROM readings')) ?? 0;
 
-  Future<List<RunSummary>> runs({String? kind}) async {
+  Future<List<RunSummary>> runs({String? kind, String? instrument}) async {
+    final where = [if (kind != null) 'kind = ?', if (instrument != null) 'instrument = ?'];
     final r = await _db.rawQuery(
       'SELECT run_id, instrument, kind, COUNT(*) n, MIN(ts) t0, MAX(ts) t1 FROM readings'
-      '${kind == null ? '' : ' WHERE kind = ?'} GROUP BY run_id ORDER BY t1 DESC',
-      kind == null ? null : [kind],
+      '${where.isEmpty ? '' : ' WHERE ${where.join(' AND ')}'} GROUP BY run_id ORDER BY t1 DESC',
+      [?kind, ?instrument],
     );
     return [
       for (final m in r)
