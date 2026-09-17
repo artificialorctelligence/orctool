@@ -69,7 +69,7 @@ class OrctoolApp extends StatelessWidget {
               store: store,
               instrumentBuilder: (_, i) => InstrumentScreen(key: ValueKey(i.id), instrument: i, registry: registry, recorder: recorder),
               recordsBuilder: (_) => RecordsScreen(store: store, registry: registry, prefs: prefs),
-              settingsBuilder: (_) => SettingsScreen(prefs: prefs, registry: registry),
+              settingsBuilder: (_) => SettingsScreen(prefs: prefs, registry: registry, store: store),
             ),
           );
         },
